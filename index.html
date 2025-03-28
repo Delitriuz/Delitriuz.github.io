@@ -20,6 +20,7 @@
             --system-gray-5: #E5E5EA;
             --system-gray-3: #C7C7CC;
             --system-red: #FF3B30;
+            --system-green: #34C759;
             --label-primary: #000000;
             --label-secondary: #3C3C4399;
             --background-primary: #FFFFFF;
@@ -118,15 +119,25 @@
             animation: loadingShimmer 1.5s infinite;
         }
 
+        /* 复制按钮样式（修改为绿色） */
+        .copy-button {
+            background-color: var(--system-green) !important; /* 主要修改点 */
+            margin-top: 12px;
+            transition: background-color 0.3s ease;
+        }
+
+        .copy-button.copied {
+            animation: buttonBounce 0.4s ease;
+        }
+
         @keyframes loadingShimmer {
             0% { transform: translateX(-100%) }
             100% { transform: translateX(100%) }
         }
 
-        /* 新增按钮样式 */
-        .copy-button {
-            background-color: var(--system-gray-3) !important;
-            margin-top: 12px;
+        @keyframes buttonBounce {
+            0%, 100% { transform: scale(1) }
+            50% { transform: scale(0.96) }
         }
 
         /* 坐标显示 */
@@ -180,20 +191,36 @@
         }
 
         /* 提示信息 */
-        .error-message {
-            color: var(--system-red);
+        .message {
             font-size: 15px;
             text-align: center;
-            margin-top: 16px;
             padding: 12px;
-            background: rgba(255, 59, 48, 0.1);
             border-radius: 12px;
-            display: none;
+            display: block;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.4, 1);
+            height: 0;
+            margin: 0;
+        }
+
+        .message.visible {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+            height: auto;
+            margin-top: 16px;
+        }
+
+        .error-message {
+            color: var(--system-red);
+            background: rgba(255, 59, 48, 0.1);
         }
 
         .success-message {
-            color: #34C759 !important;
-            background: rgba(52, 199, 89, 0.1) !important;
+            color: var(--system-green);
+            background: rgba(52, 199, 89, 0.1);
         }
     </style>
 </head>
@@ -232,7 +259,7 @@
             </div>
         </div>
 
-        <div id="errorMessage" class="error-message"></div>
+        <div id="message" class="message"></div>
     </div>
 
     <div id="mapContainer" class="card"></div>
@@ -244,16 +271,16 @@
     function getLocation() {
         const button = document.getElementById('locationButton');
         const coordinates = document.getElementById('coordinates');
-        const errorMessage = document.getElementById('errorMessage');
+        const message = document.getElementById('message');
         
         // 重置状态
-        errorMessage.style.display = 'none';
+        message.classList.remove('visible');
         coordinates.classList.remove('show');
         button.classList.add('loading');
         document.getElementById('mapContainer').classList.remove('show');
 
         if (!navigator.geolocation) {
-            showError("您的浏览器不支持地理定位");
+            showMessage("您的浏览器不支持地理定位", 'error');
             return;
         }
 
@@ -282,7 +309,7 @@
                     2: '无法获取位置信息',
                     3: '定位请求超时'
                 };
-                showError(errors[error.code] || '定位服务不可用');
+                showMessage(errors[error.code] || '定位服务不可用', 'error');
                 button.classList.remove('loading');
             },
             { 
@@ -323,32 +350,45 @@
     }
 
     function copyCoordinates() {
+        const btn = document.getElementById('copyButton');
         const lng = document.getElementById('longitude').textContent;
         const lat = document.getElementById('latitude').textContent;
         
         if (lng === '--' || lat === '--') {
-            showError('请先获取位置信息');
+            showMessage('请先获取位置信息', 'error');
             return;
         }
         
         const coords = `${lng} ${lat}`;
         navigator.clipboard.writeText(coords).then(() => {
-            showError('坐标已复制', 'success');
+            // 按钮反馈动画
+            btn.classList.add('copied');
+            setTimeout(() => btn.classList.remove('copied'), 400);
+            
+            // 显示成功提示
+            showMessage('坐标已复制', 'success');
         }).catch(err => {
-            showError('复制失败，请手动复制');
+            showMessage('复制失败，请手动复制', 'error');
         });
     }
 
-    function showError(message, type = 'error') {
-        const errorMessage = document.getElementById('errorMessage');
-        errorMessage.textContent = message;
-        errorMessage.className = `error-message ${type === 'success' ? 'success-message' : ''}`;
-        errorMessage.style.display = 'block';
-        
+    function showMessage(text, type) {
+        const message = document.getElementById('message');
+        message.textContent = text;
+        message.className = `message ${type}-message`;
+
+        // 显示动画
+        void message.offsetHeight; // 触发重绘
+        message.classList.add('visible');
+
+        // 自动隐藏（仅限成功提示）
         if (type === 'success') {
             setTimeout(() => {
-                errorMessage.style.display = 'none';
-            }, 2000);
+                message.classList.remove('visible');
+                setTimeout(() => {
+                    message.textContent = '';
+                }, 300); // 等待过渡结束
+            }, 1500);
         }
     }
     </script>
